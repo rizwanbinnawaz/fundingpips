@@ -1,7 +1,5 @@
-# frozen_string_literal: true
-
 class IpActivity < ApplicationRecord
-  enum :activity_type, { trade: 0, login: 1, kyc: 2 }
+  enum activity_type: { trade: 0, login: 1, kyc: 2 }
 
   validates :activity_type, :ip_address, presence: true
   validate :resource_presence
@@ -9,36 +7,42 @@ class IpActivity < ApplicationRecord
   belongs_to :ip_address_record,
              primary_key: :address,
              foreign_key: :ip_address,
-             inverse_of:  :ip_activities,
-             class_name:  "IpAddress"
+             inverse_of: :ip_activities,
+             class_name: "IpAddress"
   belongs_to :trading_account,
              primary_key: :login,
              foreign_key: :trading_account_login,
-             inverse_of:  :ip_activities,
-             optional:    true
+             inverse_of: :ip_activities,
+             optional: true
   belongs_to :user, optional: true
   belongs_to :owning_user, class_name: "User", optional: true
 
   default_scope { order(created_at: :desc) }
 
   scope :for_user, lambda { |user|
-    where(user:).includes(:user, :trading_account, :ip_address_record)
-                .or(where(trading_account_login: user.trading_accounts.select(:login)))
+    where(user: user).or(where(trading_account_login: user.trading_accounts.select(:login)))
   }
-  scope :recent_n_per_activity_type, lambda { |limit|
-    query = <<-SQL.squish
-      SELECT activity_limited.id
-      FROM (SELECT DISTINCT activity_type FROM ip_activities) activity_groups
-      JOIN LATERAL (
-        SELECT * FROM ip_activities activity_all
-        WHERE activity_all.activity_type = activity_groups.activity_type
-        ORDER BY activity_all.created_at DESC
-        LIMIT :limit
-      ) activity_limited ON true
-    SQL
 
-    where("ip_activities.id IN (#{ApplicationRecord.sanitize_sql([query, { limit: }])})")
-  }
+  # Scopes for enums to allow .kyc, .login, .trade
+  # These are auto-created by enum, so no need to define explicitly
+
+  # Smart limiting to fetch latest kyc, login, and trade activities prioritized.
+  def self.smart_limit_for_user(user, total_limit: 3000, kyc_limit: 10, login_limit: 1000)
+    kyc_activities = for_user(user).kyc.limit(kyc_limit)
+    login_activities = for_user(user).login.limit(login_limit)
+
+    kyc_count = kyc_activities.size
+    login_count = login_activities.size
+
+    trade_limit = total_limit - kyc_count - login_count
+    trade_limit = 0 if trade_limit < 0
+
+    trade_activities = for_user(user).trade.limit(trade_limit)
+
+    combined_ids = (kyc_activities.ids + login_activities.ids + trade_activities.ids).uniq
+
+    where(id: combined_ids).order(created_at: :desc)
+  end
 
   def resource
     trading_account || user

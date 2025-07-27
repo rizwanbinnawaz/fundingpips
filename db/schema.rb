@@ -10,9 +10,22 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.2].define(version: 2024_05_01_000004) do
+ActiveRecord::Schema[7.1].define(version: 2024_05_01_000005) do
   # These are extensions that must be enabled in order to support this database
+  enable_extension "adminpack"
   enable_extension "plpgsql"
+
+  create_table "filters", force: :cascade do |t|
+    t.string "name", null: false
+    t.bigint "user_id", null: false
+    t.string "filterable_type", null: false
+    t.bigint "filterable_id", null: false
+    t.jsonb "params", default: "{}", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["filterable_type", "filterable_id"], name: "index_filters_on_filterable_type_and_filterable_id"
+    t.index ["user_id"], name: "index_filters_on_user_id"
+  end
 
   create_table "ip_activities", force: :cascade do |t|
     t.string "ip_address", null: false
@@ -58,6 +71,7 @@ ActiveRecord::Schema[7.2].define(version: 2024_05_01_000004) do
     t.index ["email"], name: "index_users_on_email", unique: true
   end
 
+  add_foreign_key "filters", "users"
   add_foreign_key "ip_activities", "ip_addresses", column: "ip_address", primary_key: "address"
   add_foreign_key "ip_activities", "trading_accounts", column: "trading_account_login", primary_key: "login"
   add_foreign_key "ip_activities", "users"
