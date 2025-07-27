@@ -8,8 +8,8 @@ A Ruby on Rails implementation that efficiently handles large-scale IP activity 
 
 ```bash
 # Clone the project
-git clone https://github.com/your-org/ip-activities-app.git
-cd ip-activities-app
+git clone https://github.com/rizwanbinnawaz/fundingpips.git
+cd fundingpips
 
 # Install dependencies
 bundle install
